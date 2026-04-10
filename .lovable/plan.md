@@ -1,56 +1,47 @@
 
 
-## Mapa de Financiamentos — Plano de Implementação
+# Plano: Substituir Mock por Dados Reais via Edge Function + IA
 
-### Design
-- **Tema**: Dark mode com paleta Midnight Indigo (#0a0a1a, #141432, #1e1e5a, #4f46e5)
-- **Tipografia**: Sora (headings) + Manrope (body)
-- **Layout**: Dashboard com sidebar colapsável + área principal dividida entre grafo e painéis de dados
+Vou executar os passos do seu prompt.txt com uma adaptação importante: em vez da API Anthropic (que exigiria uma chave separada), vou usar o **Lovable AI Gateway** que já está configurado e pronto no projeto. O resultado final é idêntico.
 
-### Estrutura do App
+## Passo 1 — Criar tabelas no banco
 
-**1. Sidebar (navegação)**
-- Busca (página principal)
-- Minha Investigação (histórico + grafo completo)
-- Insights (padrões detectados)
+Tabelas `organizations` e `fundings` com RLS público para leitura e insert via service role. Exatamente como você especificou.
 
-**2. Página de Busca (Home)**
-- Campo de busca com autocomplete e normalização de nome
-- Ao buscar, exibe:
-  - **Painel de Financiamentos**: lista com financiador, valor, ano, fonte (link)
-  - **Painel de Relações**: conexões identificadas (mesmos financiadores, co-ocorrência)
-  - **Mini-grafo**: visualização das relações da organização buscada
-- Tags indicando "confirmado" vs "inferido via IA"
+## Passo 2 — Edge Function `search-organization`
 
-**3. Página "Minha Investigação"**
-- Grafo dinâmico interativo (D3.js/force-directed) com todas as buscas acumuladas
-- Nós: organizações (azul), financiadores (dourado), pessoas (verde)
-- Arestas: financiamento, parceria, co-ocorrência
-- Zoom, arrastar, clicar em nós para detalhes
-- Seção "Conexões com sua investigação" — cruzamento automático entre buscas
+Mesmo fluxo do seu prompt:
+1. Busca cache no banco
+2. Chama IA com prompt rigoroso listando as 16+ bases de dados
+3. Valida URLs com HEAD request
+4. Salva no banco como cache
 
-**4. Página de Insights**
-- Financiadores recorrentes na rede do usuário
-- Clusters de organizações
-- Concentração de funding
-- Texto em linguagem simples gerado por IA
+**Diferença**: usa `https://ai.gateway.lovable.dev/v1/chat/completions` com `LOVABLE_API_KEY` (já configurado) em vez de `api.anthropic.com`. Modelo: `google/gemini-2.5-flash` — rápido e bom para extração estruturada.
 
-### Dados
-- **Dados mock pré-carregados**: ~20 organizações brasileiras com financiamentos realistas (fundações internacionais, editais nacionais)
-- **IA (Lovable AI)**: ao buscar uma organização, a IA enriquece com informações conhecidas sobre financiamentos, conexões e contexto
-- Dados armazenados no banco Supabase (PostgreSQL) com tabelas: organizações, financiadores, financiamentos, relações
+## Passo 3 — Hook `useInvestigation.ts`
 
-### Backend (Lovable Cloud)
-- **Edge Function "search"**: recebe nome da organização → busca no banco local → chama Lovable AI para enriquecer dados → retorna resultados consolidados
-- **Edge Function "insights"**: analisa histórico do usuário e gera padrões via IA
-- **Banco de dados**: tabelas para organizações, financiamentos, relações, histórico de buscas do usuário
+Substituir pelo seu código — chama a edge function via `supabase.functions.invoke()`, monta grafo, detecta conexões entre buscas.
 
-### Memória do Usuário
-- Histórico de buscas salvo no localStorage (MVP, sem autenticação)
-- Grafo acumulativo persistido localmente
-- Cruzamento automático a cada nova busca
+## Passo 4 — `SearchInput.tsx`
 
-### Transparência
-- Cada dado exibe fonte e tipo (confirmado/inferido)
-- Badge visual diferenciando dados diretos vs inferidos por IA
+Remover dependência do mockData, aceitar busca livre.
+
+## Passo 5 — Sem ação necessária
+
+`LOVABLE_API_KEY` já existe como secret. Não precisa configurar nada manualmente.
+
+## Passo 6 — Limpeza
+
+`mockData.ts` permanece como referência mas não é mais importado pelo hook.
+
+---
+
+### Resumo técnico
+
+| Arquivo | Ação |
+|---------|------|
+| Migration SQL | Criar tabelas `organizations` + `fundings` com RLS |
+| `supabase/functions/search-organization/index.ts` | Criar — Lovable AI Gateway |
+| `src/hooks/useInvestigation.ts` | Substituir — chamar edge function |
+| `src/components/SearchInput.tsx` | Simplificar — remover mock |
 
