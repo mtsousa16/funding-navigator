@@ -14,7 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      fundings: {
+        Row: {
+          amount: number | null
+          confidence: string | null
+          created_at: string | null
+          currency: string | null
+          funder_name: string
+          id: string
+          organization_id: string | null
+          source_name: string
+          source_url: string
+          year: number | null
+        }
+        Insert: {
+          amount?: number | null
+          confidence?: string | null
+          created_at?: string | null
+          currency?: string | null
+          funder_name: string
+          id?: string
+          organization_id?: string | null
+          source_name: string
+          source_url: string
+          year?: number | null
+        }
+        Update: {
+          amount?: number | null
+          confidence?: string | null
+          created_at?: string | null
+          currency?: string | null
+          funder_name?: string
+          id?: string
+          organization_id?: string | null
+          source_name?: string
+          source_url?: string
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fundings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          aliases: string[] | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          type: string | null
+        }
+        Insert: {
+          aliases?: string[] | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          type?: string | null
+        }
+        Update: {
+          aliases?: string[] | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
