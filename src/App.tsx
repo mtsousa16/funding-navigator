@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppLayout() {
-  const { state, lastResult, isSearching, search, clearInvestigation } = useInvestigation();
+  const { state, lastResult, isSearching, searchError, search, clearInvestigation } = useInvestigation();
 
   return (
     <SidebarProvider>
