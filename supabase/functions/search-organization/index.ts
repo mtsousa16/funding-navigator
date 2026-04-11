@@ -165,6 +165,23 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    // Buscar na tabela grants (dados estruturados)
+    const { data: grantsData } = await supabase
+      .from('grants')
+      .select('grantee_name, title, total_amount, year, topic, url')
+      .ilike('grantee_name', `%${query}%`)
+
+    const grantsAsFundings = (grantsData || []).map((g: any) => ({
+      funder_name: g.title || g.topic || 'Grant',
+      amount: g.total_amount,
+      currency: 'USD',
+      year: g.year,
+      source_name: g.grantee_name,
+      source_url: g.url || '',
+      confidence: 'confirmed',
+      notes: g.topic ? `Tema: ${g.topic}` : null,
+    }))
+
     const { data: cachedOrg } = await supabase
       .from('organizations')
       .select('id, name, aliases, type, country, description')
@@ -176,7 +193,7 @@ Deno.serve(async (req) => {
         .from('fundings').select('*').eq('organization_id', cachedOrg.id)
       if (cachedFundings && cachedFundings.length > 0) {
         return new Response(JSON.stringify({
-          organization: cachedOrg, fundings: cachedFundings, network: null, fromCache: true
+          organization: cachedOrg, fundings: [...cachedFundings, ...grantsAsFundings], network: null, fromCache: true
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
     }
