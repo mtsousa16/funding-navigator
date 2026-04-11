@@ -1,4 +1,4 @@
-import { Search, Network, Lightbulb, Trash2 } from "lucide-react";
+import { Search, Network, Lightbulb, Trash2, Database } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -19,6 +19,7 @@ const navItems = [
   { title: "Busca", url: "/", icon: Search },
   { title: "Minha Investigação", url: "/investigation", icon: Network },
   { title: "Insights", url: "/insights", icon: Lightbulb },
+  { title: "Todos os Grants", url: "/grants", icon: Database },
 ];
 
 interface AppSidebarProps {

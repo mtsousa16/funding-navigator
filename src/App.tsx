@@ -9,6 +9,7 @@ import { useInvestigation } from "@/hooks/useInvestigation";
 import SearchPage from "./pages/Index";
 import InvestigationPage from "./pages/Investigation";
 import InsightsPage from "./pages/Insights";
+import AllGrantsPage from "./pages/AllGrants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ function AppLayout() {
                 path="/insights"
                 element={<InsightsPage state={state} />}
               />
+              <Route path="/grants" element={<AllGrantsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
