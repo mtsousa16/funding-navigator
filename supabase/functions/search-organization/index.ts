@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       return !KNOWN_DOMAINS.some(domain => f.source_url.toLowerCase().includes(domain))
     }).map((f: any) => ({ ...f, confidence: 'unverified' }))
 
-    const finalFundings = [...verifiedFundings, ...unverifiedFundings]
+    const finalFundings = [...verifiedFundings, ...unverifiedFundings, ...grantsAsFundings]
 
     const orgData = claudeResult?.organization
     const { data: orgInserted } = await supabase
