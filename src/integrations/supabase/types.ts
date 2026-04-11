@@ -61,6 +61,39 @@ export type Database = {
           },
         ]
       }
+      grants: {
+        Row: {
+          created_at: string | null
+          grantee_name: string
+          id: string
+          title: string | null
+          topic: string | null
+          total_amount: number | null
+          url: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          grantee_name: string
+          id?: string
+          title?: string | null
+          topic?: string | null
+          total_amount?: number | null
+          url?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          grantee_name?: string
+          id?: string
+          title?: string | null
+          topic?: string | null
+          total_amount?: number | null
+          url?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           aliases: string[] | null
