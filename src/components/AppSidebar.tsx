@@ -1,6 +1,5 @@
-import { Search, Network, Lightbulb, Trash2 } from "lucide-react";
+import { Search, Network, Lightbulb, Trash2, Shield } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -16,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { title: "Busca", url: "/", icon: Search },
-  { title: "Minha Investigação", url: "/investigation", icon: Network },
+  { title: "Feed", url: "/", icon: Search },
+  { title: "Mapa Tático", url: "/investigation", icon: Network },
   { title: "Insights", url: "/insights", icon: Lightbulb },
 ];
 
@@ -29,15 +28,15 @@ interface AppSidebarProps {
 export function AppSidebar({ searchCount = 0, onClearInvestigation }: AppSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
           {!collapsed && (
-            <SidebarGroupLabel className="font-heading text-xs uppercase tracking-widest text-primary">
-              Mapa de Financiamentos
+            <SidebarGroupLabel className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+              <Shield className="h-3 w-3" />
+              GrandeIrmão
             </SidebarGroupLabel>
           )}
           <SidebarGroupContent>
@@ -48,13 +47,13 @@ export function AppSidebar({ searchCount = 0, onClearInvestigation }: AppSidebar
                     <NavLink
                       to={item.url}
                       end
-                      className="hover:bg-sidebar-accent/50 transition-colors"
+                      className="hover:bg-sidebar-accent/50 transition-colors font-mono text-xs"
                       activeClassName="bg-sidebar-accent text-primary font-medium"
                     >
                       <item.icon className="mr-2 h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                       {!collapsed && item.url === "/investigation" && searchCount > 0 && (
-                        <span className="ml-auto text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                        <span className="ml-auto text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">
                           {searchCount}
                         </span>
                       )}
@@ -71,11 +70,11 @@ export function AppSidebar({ searchCount = 0, onClearInvestigation }: AppSidebar
           <Button
             variant="ghost"
             size="sm"
-            className="w-full text-muted-foreground hover:text-destructive"
+            className="w-full text-muted-foreground hover:text-destructive font-mono text-xs"
             onClick={onClearInvestigation}
           >
             <Trash2 className="mr-2 h-3 w-3" />
-            Limpar investigação
+            Limpar dados
           </Button>
         </SidebarFooter>
       )}
