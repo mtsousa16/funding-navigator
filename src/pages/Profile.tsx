@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { AvatarCropDialog } from '@/components/AvatarCropDialog';
 import { Settings, Grid3X3, Link as LinkIcon, LogOut, AtSign, Mail } from 'lucide-react';
 
 interface ProfilePageProps {
@@ -32,6 +33,8 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
   const [editBio, setEditBio] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editShowEmail, setEditShowEmail] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [showCrop, setShowCrop] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -107,15 +110,23 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     toast({ title: 'Perfil atualizado!' });
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !currentUserId) return;
-    const ext = file.name.split('.').pop();
-    const path = `${currentUserId}/avatar.${ext}`;
-    await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    if (!file) return;
+    setCropFile(file);
+    setShowCrop(true);
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (blob: Blob) => {
+    if (!currentUserId) return;
+    setShowCrop(false);
+    const path = `${currentUserId}/avatar.png`;
+    await supabase.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/png' });
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('user_id', currentUserId);
-    setProfile((p: any) => ({ ...p, avatar_url: data.publicUrl }));
+    const url = data.publicUrl + '?t=' + Date.now();
+    await supabase.from('profiles').update({ avatar_url: url }).eq('user_id', currentUserId);
+    setProfile((p: any) => ({ ...p, avatar_url: url }));
     toast({ title: 'Foto atualizada!' });
   };
 
@@ -155,7 +166,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
                   onClick={() => fileRef.current?.click()}
                   className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 text-xs"
                 >+</button>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} />
               </>
             )}
           </div>
