@@ -261,6 +261,13 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
           </div>
         )}
       </div>
+
+      <AvatarCropDialog
+        open={showCrop}
+        onClose={() => setShowCrop(false)}
+        imageFile={cropFile}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 }
