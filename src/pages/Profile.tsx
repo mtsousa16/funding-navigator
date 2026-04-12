@@ -5,9 +5,10 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { PostCard } from '@/components/PostCard';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Settings, Grid3X3, Link as LinkIcon, LogOut } from 'lucide-react';
+import { Settings, Grid3X3, Link as LinkIcon, LogOut, AtSign, Mail } from 'lucide-react';
 
 interface ProfilePageProps {
   currentUserId?: string;
@@ -20,14 +21,17 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
   const isOwnProfile = profileUserId === currentUserId;
 
   const [profile, setProfile] = useState<any>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
+  const [editShowEmail, setEditShowEmail] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -39,10 +43,19 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         setProfile(data);
         if (data) {
           setEditName(data.display_name || '');
+          setEditUsername((data as any).username || '');
           setEditBio(data.bio || '');
           setEditWebsite(data.website_url || '');
+          setEditShowEmail((data as any).show_email || false);
         }
       });
+
+    // Get email only for own profile
+    if (isOwnProfile) {
+      supabase.auth.getUser().then(({ data }) => {
+        setUserEmail(data.user?.email || null);
+      });
+    }
 
     supabase.from('posts').select('*').eq('user_id', profileUserId).order('created_at', { ascending: false })
       .then(({ data }) => setPosts(data || []));
@@ -76,14 +89,22 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     if (!currentUserId) return;
     const { error } = await supabase.from('profiles').update({
       display_name: editName,
+      username: editUsername || null,
       bio: editBio,
       website_url: editWebsite,
-    }).eq('user_id', currentUserId);
-    if (!error) {
-      setProfile((p: any) => ({ ...p, display_name: editName, bio: editBio, website_url: editWebsite }));
-      setEditing(false);
-      toast({ title: 'Perfil atualizado!' });
+      show_email: editShowEmail,
+    } as any).eq('user_id', currentUserId);
+    if (error) {
+      if (error.message.includes('unique') || error.message.includes('duplicate')) {
+        toast({ title: 'Username já em uso', description: 'Escolha outro nome de usuário.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+      }
+      return;
     }
+    setProfile((p: any) => ({ ...p, display_name: editName, username: editUsername, bio: editBio, website_url: editWebsite, show_email: editShowEmail }));
+    setEditing(false);
+    toast({ title: 'Perfil atualizado!' });
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,12 +119,14 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     toast({ title: 'Foto atualizada!' });
   };
 
+  const displayName = profile?.username || profile?.display_name || 'Perfil';
+
   if (!profile) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="max-w-lg mx-auto pb-16">
       <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3 flex items-center justify-between">
-        <h1 className="text-base font-semibold">{profile.display_name || 'Perfil'}</h1>
+        <h1 className="text-base font-semibold">{displayName}</h1>
         {isOwnProfile && (
           <div className="flex gap-2">
             <button onClick={() => setEditing(!editing)}>
@@ -123,7 +146,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
             <Avatar className="h-20 w-20">
               {profile.avatar_url && <AvatarImage src={profile.avatar_url} />}
               <AvatarFallback className="text-2xl bg-secondary text-secondary-foreground">
-                {(profile.display_name || 'U')[0].toUpperCase()}
+                {(displayName)[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             {isOwnProfile && (
@@ -156,6 +179,16 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         {/* Bio */}
         <div>
           <p className="font-semibold text-sm">{profile.display_name}</p>
+          {profile.username && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <AtSign className="h-3 w-3" />{profile.username}
+            </p>
+          )}
+          {profile.show_email && isOwnProfile && userEmail && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <Mail className="h-3 w-3" />{userEmail}
+            </p>
+          )}
           {profile.bio && <p className="text-sm mt-1">{profile.bio}</p>}
           {profile.website_url && (
             <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary flex items-center gap-1 mt-1">
@@ -178,9 +211,14 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         {/* Edit form */}
         {editing && isOwnProfile && (
           <div className="space-y-3 p-4 rounded-lg bg-secondary border border-border">
-            <Input placeholder="Nome" value={editName} onChange={e => setEditName(e.target.value)} />
+            <Input placeholder="Nome de exibição" value={editName} onChange={e => setEditName(e.target.value)} />
+            <Input placeholder="@username" value={editUsername} onChange={e => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, ''))} />
             <Textarea placeholder="Bio" value={editBio} onChange={e => setEditBio(e.target.value)} className="min-h-[60px]" />
             <Input placeholder="Website" value={editWebsite} onChange={e => setEditWebsite(e.target.value)} />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-email" className="text-sm">Mostrar email no perfil</Label>
+              <Switch id="show-email" checked={editShowEmail} onCheckedChange={setEditShowEmail} />
+            </div>
             <div className="flex gap-2">
               <Button onClick={handleSaveProfile} className="flex-1">Salvar</Button>
               <Button variant="outline" onClick={() => setEditing(false)} className="flex-1">Cancelar</Button>
