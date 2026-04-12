@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +13,6 @@ import SearchPage from "./pages/Index";
 import CreatePostPage from "./pages/CreatePost";
 import ProfilePage from "./pages/Profile";
 import MessagesPage from "./pages/Messages";
-import InvestigationPage from "./pages/Investigation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +53,8 @@ function AppContent() {
               remaining={remaining}
               isAdmin={isAdmin}
               currentUserId={user.id}
+              state={state}
+              onClearInvestigation={clearInvestigation}
             />
           }
         />
@@ -61,7 +62,6 @@ function AppContent() {
         <Route path="/messages" element={<MessagesPage currentUserId={user.id} />} />
         <Route path="/profile" element={<ProfilePage currentUserId={user.id} onSignOut={signOut} />} />
         <Route path="/profile/:userId" element={<ProfilePage currentUserId={user.id} />} />
-        <Route path="/investigation" element={<InvestigationPage state={state} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <BottomNav />
