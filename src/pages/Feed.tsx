@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { PostCard } from '@/components/PostCard';
+import { StoriesBar } from '@/components/StoriesBar';
 
 interface FeedPageProps {
   currentUserId?: string;
@@ -39,6 +40,9 @@ export default function FeedPage({ currentUserId }: FeedPageProps) {
       <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3">
         <h1 className="text-xl font-bold text-foreground">GrandeIrmão</h1>
       </div>
+
+      {/* Stories */}
+      <StoriesBar currentUserId={currentUserId} />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
