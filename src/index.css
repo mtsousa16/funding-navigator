@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,55 +6,44 @@
 
 @layer base {
   :root {
-    --background: 0 0% 0%;
-    --foreground: 0 0% 90%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 7%;
 
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 90%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
 
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 90%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
 
-    --primary: 180 100% 50%;
-    --primary-foreground: 0 0% 0%;
+    --primary: 204 100% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 8%;
-    --secondary-foreground: 0 0% 80%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 30%;
 
-    --muted: 0 0% 6%;
+    --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 180 100% 50%;
-    --accent-foreground: 0 0% 0%;
+    --accent: 340 75% 55%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 12%;
-    --input: 0 0% 12%;
-    --ring: 180 100% 50%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 204 100% 50%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --neon-cyan: 180 100% 50%;
-    --neon-green: 145 100% 50%;
-    --neon-amber: 45 100% 55%;
-
-    --sidebar-background: 0 0% 2%;
-    --sidebar-foreground: 0 0% 65%;
-    --sidebar-primary: 180 100% 50%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 8%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 8%;
-    --sidebar-ring: 180 100% 50%;
-
-    --node-org: 180 100% 50%;
-    --node-funder: 45 100% 55%;
-    --node-person: 145 100% 50%;
-    --edge-funding: 180 80% 40%;
-    --edge-partnership: 45 70% 50%;
-    --edge-cooccurrence: 200 50% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 30%;
+    --sidebar-primary: 204 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 204 100% 50%;
   }
 }
 
@@ -65,80 +54,9 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    background: #000000;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
-  }
-}
-
-@layer utilities {
-  .glass-panel {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 rounded-lg;
-  }
-
-  .glow-primary {
-    box-shadow: 0 0 20px hsl(180 100% 50% / 0.12), 0 0 60px hsl(180 100% 50% / 0.04);
-  }
-
-  .glow-cyan {
-    box-shadow: 0 0 12px hsl(180 100% 50% / 0.3), 0 0 40px hsl(180 100% 50% / 0.08);
-  }
-
-  .neon-text {
-    color: hsl(180 100% 50%);
-    text-shadow: 0 0 8px hsl(180 100% 50% / 0.5), 0 0 20px hsl(180 100% 50% / 0.2);
-  }
-
-  .neon-green-text {
-    color: hsl(145 100% 50%);
-    text-shadow: 0 0 8px hsl(145 100% 50% / 0.5), 0 0 20px hsl(145 100% 50% / 0.2);
-  }
-
-  .badge-confirmed {
-    @apply bg-emerald-500/10 text-emerald-400 border-emerald-500/20;
-  }
-
-  .badge-inferred {
-    @apply bg-amber-500/10 text-amber-400 border-amber-500/20;
-  }
-
-  .tactical-border {
-    border: 1px solid hsl(180 100% 50% / 0.1);
-  }
-
-  .tactical-border-hover:hover {
-    border-color: hsl(180 100% 50% / 0.3);
-    box-shadow: 0 0 20px hsl(180 100% 50% / 0.05);
-  }
-
-  .scanline {
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      hsl(180 100% 50% / 0.015) 2px,
-      hsl(180 100% 50% / 0.015) 4px
-    );
-  }
-
-  .radar-pulse {
-    animation: radar-sweep 3s ease-in-out infinite;
-  }
-
-  @keyframes radar-sweep {
-    0%, 100% { opacity: 0.3; transform: scale(0.95); }
-    50% { opacity: 1; transform: scale(1); }
-  }
-
-  @keyframes flicker {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.97; }
-    75% { opacity: 0.99; }
-  }
-
-  .text-flicker {
-    animation: flicker 4s linear infinite;
   }
 }

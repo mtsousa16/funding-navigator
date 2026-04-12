@@ -1,0 +1,188 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface MessagesPageProps {
+  currentUserId?: string;
+}
+
+export default function MessagesPage({ currentUserId }: MessagesPageProps) {
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [activeConvo, setActiveConvo] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMsg, setNewMsg] = useState('');
+  const [otherUser, setOtherUser] = useState<any>(null);
+  const [newChatEmail, setNewChatEmail] = useState('');
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    loadConversations();
+  }, [currentUserId]);
+
+  const loadConversations = async () => {
+    if (!currentUserId) return;
+    const { data: parts } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', currentUserId);
+
+    if (!parts?.length) return;
+    const convoIds = parts.map(p => p.conversation_id);
+
+    const convos = await Promise.all(convoIds.map(async convoId => {
+      const { data: otherParts } = await supabase
+        .from('conversation_participants')
+        .select('user_id')
+        .eq('conversation_id', convoId)
+        .neq('user_id', currentUserId);
+
+      const otherUserId = otherParts?.[0]?.user_id;
+      let profile = null;
+      if (otherUserId) {
+        const { data } = await supabase.from('profiles').select('display_name, avatar_url').eq('user_id', otherUserId).single();
+        profile = data;
+      }
+
+      const { data: lastMsg } = await supabase
+        .from('messages')
+        .select('content, created_at')
+        .eq('conversation_id', convoId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      return { id: convoId, otherUserId, profile, lastMsg };
+    }));
+
+    setConversations(convos.sort((a, b) => {
+      const ta = a.lastMsg?.created_at || '';
+      const tb = b.lastMsg?.created_at || '';
+      return tb.localeCompare(ta);
+    }));
+  };
+
+  const openConvo = async (convoId: string) => {
+    setActiveConvo(convoId);
+    const convo = conversations.find(c => c.id === convoId);
+    setOtherUser(convo?.profile);
+
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', convoId)
+      .order('created_at', { ascending: true });
+    setMessages(data || []);
+
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+    // Realtime
+    const channel = supabase
+      .channel(`dm-${convoId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convoId}` }, (payload) => {
+        setMessages(prev => [...prev, payload.new as any]);
+        setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  };
+
+  const sendMessage = async () => {
+    if (!currentUserId || !activeConvo || !newMsg.trim()) return;
+    await supabase.from('messages').insert({
+      conversation_id: activeConvo,
+      sender_id: currentUserId,
+      content: newMsg.trim(),
+    });
+    setNewMsg('');
+  };
+
+  const startNewChat = async () => {
+    if (!currentUserId || !newChatEmail.trim()) return;
+    // Find user by searching profiles (basic approach)
+    // For now, we'll skip this and show the conversation list
+    setNewChatEmail('');
+  };
+
+  if (activeConvo) {
+    return (
+      <div className="max-w-lg mx-auto flex flex-col h-[calc(100vh-56px)]">
+        <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setActiveConvo(null)}>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <Avatar className="h-8 w-8">
+            {otherUser?.avatar_url && <AvatarImage src={otherUser.avatar_url} />}
+            <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
+              {(otherUser?.display_name || 'U')[0].toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="font-semibold text-sm">{otherUser?.display_name || 'Usuário'}</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {messages.map(msg => (
+            <div key={msg.id} className={cn('flex', msg.sender_id === currentUserId ? 'justify-end' : 'justify-start')}>
+              <div className={cn(
+                'max-w-[75%] px-3 py-2 rounded-2xl text-sm',
+                msg.sender_id === currentUserId ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
+              )}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          <div ref={endRef} />
+        </div>
+
+        <div className="border-t border-border p-3 flex gap-2">
+          <Input
+            value={newMsg}
+            onChange={e => setNewMsg(e.target.value)}
+            placeholder="Mensagem..."
+            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+            className="flex-1"
+          />
+          <Button size="icon" onClick={sendMessage} disabled={!newMsg.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-lg mx-auto pb-16">
+      <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3">
+        <h1 className="text-base font-semibold">Mensagens</h1>
+      </div>
+
+      {conversations.length === 0 ? (
+        <p className="text-center py-20 text-muted-foreground text-sm">Nenhuma conversa ainda</p>
+      ) : (
+        conversations.map(convo => (
+          <button
+            key={convo.id}
+            onClick={() => openConvo(convo.id)}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors border-b border-border"
+          >
+            <Avatar className="h-12 w-12">
+              {convo.profile?.avatar_url && <AvatarImage src={convo.profile.avatar_url} />}
+              <AvatarFallback className="bg-secondary text-secondary-foreground">
+                {(convo.profile?.display_name || 'U')[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-sm">{convo.profile?.display_name || 'Usuário'}</p>
+              <p className="text-xs text-muted-foreground truncate">{convo.lastMsg?.content || ''}</p>
+            </div>
+          </button>
+        ))
+      )}
+    </div>
+  );
+}
