@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        heading: ["Sora", "sans-serif"],
-        body: ["Manrope", "sans-serif"],
+        heading: ["Inter", "sans-serif"],
+        body: ["Inter", "sans-serif"],
+        mono: ["Roboto Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,6 +61,11 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+        },
+        neon: {
+          cyan: "hsl(var(--neon-cyan))",
+          green: "hsl(var(--neon-green))",
+          amber: "hsl(var(--neon-amber))",
         },
         node: {
           org: "hsl(var(--node-org))",
