@@ -1,5 +1,4 @@
 import { ConnectionInsight } from '@/types/funding';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Zap } from 'lucide-react';
 
 interface ConnectionsAlertProps {
@@ -11,17 +10,19 @@ export function ConnectionsAlert({ connections }: ConnectionsAlertProps) {
 
   return (
     <div className="space-y-2">
-      <h3 className="font-heading text-sm font-semibold text-primary flex items-center gap-2">
-        <Zap className="h-4 w-4" />
-        Conexões com sua investigação
-      </h3>
+      <div className="flex items-center gap-2">
+        <Zap className="h-3 w-3 text-neon-amber" />
+        <span className="font-mono text-[10px] uppercase tracking-widest text-neon-amber">
+          Conexões Detectadas
+        </span>
+      </div>
       {connections.map((c, i) => (
-        <Alert key={i} className="glass-panel border-primary/20 bg-primary/5">
-          <AlertTitle className="text-sm font-medium">{c.type === 'shared_funder' ? 'Financiador compartilhado' : 'Padrão detectado'}</AlertTitle>
-          <AlertDescription className="text-xs text-muted-foreground mt-1">
-            {c.message}
-          </AlertDescription>
-        </Alert>
+        <div
+          key={i}
+          className="px-3 py-2 rounded border border-neon-amber/20 bg-neon-amber/5"
+        >
+          <p className="font-mono text-xs text-foreground/80">{c.message}</p>
+        </div>
       ))}
     </div>
   );
