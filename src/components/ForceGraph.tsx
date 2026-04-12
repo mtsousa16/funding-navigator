@@ -11,14 +11,14 @@ interface ForceGraphProps {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  organization: '#4f46e5',
-  funder: '#eab308',
-  person: '#22c55e',
+  organization: '#00ffff',
+  funder: '#ffbb00',
+  person: '#00ff88',
 };
 
 const EDGE_COLORS: Record<string, string> = {
-  funding: '#6366f1',
-  partnership: '#eab308',
+  funding: '#00cccc',
+  partnership: '#ffbb00',
   co_occurrence: '#38bdf8',
 };
 
