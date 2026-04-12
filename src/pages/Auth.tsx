@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AtSign } from 'lucide-react';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -23,9 +25,47 @@ export default function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } });
+        if (!username.trim()) {
+          toast({ title: 'Erro', description: 'Nome de usuário é obrigatório.', variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
+
+        // Check username uniqueness
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', username.trim().toLowerCase())
+          .maybeSingle();
+
+        if (existing) {
+          toast({ title: 'Erro', description: 'Esse nome de usuário já está em uso.', variant: 'destructive' });
+          setLoading(false);
+          return;
+        }
+
+        const { data: signUpData, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              username: username.trim().toLowerCase(),
+              full_name: displayName.trim() || username.trim(),
+            }
+          }
+        });
         if (error) throw error;
-        toast({ title: 'Conta criada!', description: 'Verifique seu e-mail para confirmar.' });
+
+        // Update profile with username after signup
+        if (signUpData.user) {
+          await supabase.from('profiles').update({
+            username: username.trim().toLowerCase(),
+            display_name: displayName.trim() || username.trim(),
+          }).eq('user_id', signUpData.user.id);
+        }
+
+        toast({ title: 'Conta criada!', description: 'Bem-vindo ao GrandeIrmão.' });
       }
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -54,6 +94,27 @@ export default function AuthPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-3">
+            {!isLogin && (
+              <>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="nome.de.usuario"
+                    value={username}
+                    onChange={e => setUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').toLowerCase())}
+                    className="pl-9"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                  />
+                </div>
+                <Input
+                  placeholder="Nome de exibição"
+                  value={displayName}
+                  onChange={e => setDisplayName(e.target.value)}
+                />
+              </>
+            )}
             <Input
               type="email"
               placeholder="E-mail"
