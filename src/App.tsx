@@ -41,7 +41,7 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <Routes>
-        <Route path="/" element={<FeedPage currentUserId={user.id} />} />
+        <Route path="/" element={<FeedPage currentUserId={user.id} isAdmin={isAdmin} />} />
         <Route
           path="/search"
           element={
@@ -59,7 +59,7 @@ function AppContent() {
           }
         />
         <Route path="/create" element={<CreatePostPage currentUserId={user.id} />} />
-        <Route path="/messages" element={<MessagesPage currentUserId={user.id} />} />
+        <Route path="/messages" element={<MessagesPage currentUserId={user.id} isAdmin={isAdmin} />} />
         <Route path="/profile" element={<ProfilePage currentUserId={user.id} onSignOut={signOut} />} />
         <Route path="/profile/:userId" element={<ProfilePage currentUserId={user.id} />} />
         <Route path="*" element={<NotFound />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { AvatarCropDialog } from '@/components/AvatarCropDialog';
-import { Settings, Grid3X3, Link as LinkIcon, LogOut, AtSign, Mail } from 'lucide-react';
+import { Settings, Grid3X3, Link as LinkIcon, LogOut, AtSign, Mail, MessageCircle } from 'lucide-react';
 
 interface ProfilePageProps {
   currentUserId?: string;
@@ -20,6 +20,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
   const { userId: paramUserId } = useParams();
   const profileUserId = paramUserId || currentUserId;
   const isOwnProfile = profileUserId === currentUserId;
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState<any>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isMutual, setIsMutual] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
@@ -54,9 +56,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
       });
 
     if (isOwnProfile) {
-      supabase.auth.getUser().then(({ data }) => {
-        setUserEmail(data.user?.email || null);
-      });
+      supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email || null));
     }
 
     supabase.from('posts').select('*').eq('user_id', profileUserId).order('created_at', { ascending: false })
@@ -69,8 +69,14 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
       .then(({ count }) => setFollowingCount(count || 0));
 
     if (currentUserId && currentUserId !== profileUserId) {
+      // Check if I follow them
       supabase.from('follows').select('id').eq('follower_id', currentUserId).eq('following_id', profileUserId).single()
         .then(({ data }) => setIsFollowing(!!data));
+      // Check if they follow me (for DM mutual check)
+      Promise.all([
+        supabase.from('follows').select('id').eq('follower_id', currentUserId).eq('following_id', profileUserId).single(),
+        supabase.from('follows').select('id').eq('follower_id', profileUserId).eq('following_id', currentUserId).single(),
+      ]).then(([a, b]) => setIsMutual(!!a.data && !!b.data));
     }
   }, [profileUserId, currentUserId]);
 
@@ -79,11 +85,44 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     if (isFollowing) {
       await supabase.from('follows').delete().eq('follower_id', currentUserId).eq('following_id', profileUserId);
       setIsFollowing(false);
+      setIsMutual(false);
       setFollowersCount(c => c - 1);
     } else {
       await supabase.from('follows').insert({ follower_id: currentUserId, following_id: profileUserId });
       setIsFollowing(true);
       setFollowersCount(c => c + 1);
+      // Check if now mutual
+      const { data: theyFollowMe } = await supabase.from('follows').select('id').eq('follower_id', profileUserId).eq('following_id', currentUserId).single();
+      setIsMutual(!!theyFollowMe);
+      // Notify
+      await supabase.from('notifications').insert({
+        user_id: profileUserId, type: 'follow', title: 'Novo seguidor',
+        body: 'Alguém começou a seguir você.', related_user_id: currentUserId,
+      });
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!currentUserId || !profileUserId) return;
+    // Check if conversation exists
+    const { data: myParts } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', currentUserId);
+    const { data: theirParts } = await supabase.from('conversation_participants').select('conversation_id').eq('user_id', profileUserId);
+    const myConvos = new Set((myParts || []).map(p => p.conversation_id));
+    const existingConvo = (theirParts || []).find(p => myConvos.has(p.conversation_id));
+
+    if (existingConvo) {
+      navigate('/messages');
+      return;
+    }
+
+    // Create new conversation
+    const { data: convo } = await supabase.from('conversations').insert({}).select('id').single();
+    if (convo) {
+      await supabase.from('conversation_participants').insert([
+        { conversation_id: convo.id, user_id: currentUserId },
+        { conversation_id: convo.id, user_id: profileUserId },
+      ]);
+      navigate('/messages');
     }
   };
 
@@ -129,7 +168,6 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     toast({ title: 'Foto atualizada!' });
   };
 
-  // Display: @username is primary, display_name is secondary
   const headerName = profile?.username ? `@${profile.username}` : profile?.display_name || 'Perfil';
 
   if (!profile) return <div className="flex items-center justify-center py-20"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -140,12 +178,8 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         <h1 className="text-base font-semibold">{headerName}</h1>
         {isOwnProfile && (
           <div className="flex gap-2">
-            <button onClick={() => setEditing(!editing)}>
-              <Settings className="h-5 w-5 text-foreground" />
-            </button>
-            <button onClick={onSignOut}>
-              <LogOut className="h-5 w-5 text-foreground" />
-            </button>
+            <button onClick={() => setEditing(!editing)}><Settings className="h-5 w-5 text-foreground" /></button>
+            <button onClick={onSignOut}><LogOut className="h-5 w-5 text-foreground" /></button>
           </div>
         )}
       </div>
@@ -162,53 +196,29 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
             </Avatar>
             {isOwnProfile && (
               <>
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 text-xs"
-                >+</button>
+                <button onClick={() => fileRef.current?.click()} className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1 text-xs">+</button>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarSelect} />
               </>
             )}
           </div>
-
           <div className="flex-1 flex justify-around text-center">
-            <div>
-              <div className="font-bold text-lg">{posts.length}</div>
-              <div className="text-xs text-muted-foreground">posts</div>
-            </div>
-            <div>
-              <div className="font-bold text-lg">{followersCount}</div>
-              <div className="text-xs text-muted-foreground">seguidores</div>
-            </div>
-            <div>
-              <div className="font-bold text-lg">{followingCount}</div>
-              <div className="text-xs text-muted-foreground">seguindo</div>
-            </div>
+            <div><div className="font-bold text-lg">{posts.length}</div><div className="text-xs text-muted-foreground">posts</div></div>
+            <div><div className="font-bold text-lg">{followersCount}</div><div className="text-xs text-muted-foreground">seguidores</div></div>
+            <div><div className="font-bold text-lg">{followingCount}</div><div className="text-xs text-muted-foreground">seguindo</div></div>
           </div>
         </div>
 
-        {/* Bio section - username primary, display_name secondary */}
+        {/* Bio section */}
         <div>
-          {profile.display_name && (
-            <p className="font-semibold text-sm">{profile.display_name}</p>
-          )}
+          {profile.display_name && <p className="font-semibold text-sm">{profile.display_name}</p>}
           {profile.username && (
-            <p className="text-sm text-primary flex items-center gap-1">
-              <AtSign className="h-3 w-3" />
-              {profile.username}
-            </p>
+            <p className="text-sm text-primary flex items-center gap-1"><AtSign className="h-3 w-3" />{profile.username}</p>
           )}
-          {/* Email only visible if show_email is true */}
           {profile.show_email && userEmail && isOwnProfile && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <Mail className="h-3 w-3" />{userEmail}
-            </p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Mail className="h-3 w-3" />{userEmail}</p>
           )}
-          {/* For other users viewing this profile, show email only if show_email */}
-          {profile.show_email && !isOwnProfile && profile.display_name && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <Mail className="h-3 w-3" />Email público habilitado
-            </p>
+          {profile.show_email && !isOwnProfile && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><Mail className="h-3 w-3" />Email público habilitado</p>
           )}
           {profile.bio && <p className="text-sm mt-1">{profile.bio}</p>}
           {profile.website_url && (
@@ -220,13 +230,24 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
 
         {/* Actions */}
         {!isOwnProfile && (
-          <Button
-            onClick={handleFollow}
-            variant={isFollowing ? 'outline' : 'default'}
-            className="w-full"
-          >
-            {isFollowing ? 'Seguindo' : 'Seguir'}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleFollow} variant={isFollowing ? 'outline' : 'default'} className="flex-1">
+              {isFollowing ? 'Deixar de Seguir' : 'Seguir'}
+            </Button>
+            <Button
+              onClick={handleSendMessage}
+              variant="secondary"
+              className="flex-1 gap-2"
+              disabled={!isMutual}
+              title={!isMutual ? 'Vocês precisam se seguir mutuamente para enviar mensagens' : ''}
+            >
+              <MessageCircle className="h-4 w-4" />
+              {isMutual ? 'Mensagem' : 'DM bloqueada'}
+            </Button>
+          </div>
+        )}
+        {!isOwnProfile && !isMutual && isFollowing && (
+          <p className="text-xs text-muted-foreground text-center">💡 Vocês precisam se seguir mutuamente para trocar mensagens.</p>
         )}
 
         {/* Edit form */}
@@ -235,12 +256,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
             <Input placeholder="Nome de exibição" value={editName} onChange={e => setEditName(e.target.value)} />
             <div className="relative">
               <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="username"
-                value={editUsername}
-                onChange={e => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').toLowerCase())}
-                className="pl-9"
-              />
+              <Input placeholder="username" value={editUsername} onChange={e => setEditUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').toLowerCase())} className="pl-9" />
             </div>
             <Textarea placeholder="Bio" value={editBio} onChange={e => setEditBio(e.target.value)} className="min-h-[60px]" />
             <Input placeholder="Website" value={editWebsite} onChange={e => setEditWebsite(e.target.value)} />
@@ -280,12 +296,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         )}
       </div>
 
-      <AvatarCropDialog
-        open={showCrop}
-        onClose={() => setShowCrop(false)}
-        imageFile={cropFile}
-        onCropComplete={handleCropComplete}
-      />
+      <AvatarCropDialog open={showCrop} onClose={() => setShowCrop(false)} imageFile={cropFile} onCropComplete={handleCropComplete} />
     </div>
   );
 }

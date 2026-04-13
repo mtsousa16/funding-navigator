@@ -23,9 +23,10 @@ interface UserStories {
 
 interface StoriesBarProps {
   currentUserId?: string;
+  blocked?: boolean;
 }
 
-export function StoriesBar({ currentUserId }: StoriesBarProps) {
+export function StoriesBar({ currentUserId, blocked }: StoriesBarProps) {
   const [userStories, setUserStories] = useState<UserStories[]>([]);
   const [activeStory, setActiveStory] = useState<{ userIdx: number; storyIdx: number } | null>(null);
   const [viewCount, setViewCount] = useState(0);
@@ -176,7 +177,7 @@ export function StoriesBar({ currentUserId }: StoriesBarProps) {
   };
 
   const handleCreateStory = async (file: File) => {
-    if (!currentUserId) return;
+    if (!currentUserId || blocked) return;
     setCreating(true);
     try {
       const ext = file.name.split('.').pop();

@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ImagePlus, X, ArrowLeft } from 'lucide-react';
+import { ImagePlus, X, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { useBlockCheck } from '@/hooks/useBlockCheck';
 
 interface CreatePostPageProps {
   currentUserId?: string;
@@ -18,6 +19,7 @@ export default function CreatePostPage({ currentUserId }: CreatePostPageProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { blocked, blockReason, blockUntil } = useBlockCheck(currentUserId);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,10 +30,13 @@ export default function CreatePostPage({ currentUserId }: CreatePostPageProps) {
 
   const handlePost = async () => {
     if (!currentUserId || (!content.trim() && !imageFile)) return;
+    if (blocked) {
+      toast({ title: 'Conta bloqueada', description: blockReason, variant: 'destructive' });
+      return;
+    }
     setPosting(true);
 
     let image_url: string | null = null;
-
     if (imageFile) {
       const ext = imageFile.name.split('.').pop();
       const path = `${currentUserId}/${Date.now()}.${ext}`;
@@ -60,14 +65,23 @@ export default function CreatePostPage({ currentUserId }: CreatePostPageProps) {
   return (
     <div className="max-w-lg mx-auto pb-16">
       <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3 flex items-center justify-between">
-        <button onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-6 w-6" />
-        </button>
+        <button onClick={() => navigate(-1)}><ArrowLeft className="h-6 w-6" /></button>
         <h1 className="text-base font-semibold">Nova publicação</h1>
-        <Button size="sm" onClick={handlePost} disabled={posting || (!content.trim() && !imageFile)}>
+        <Button size="sm" onClick={handlePost} disabled={posting || blocked || (!content.trim() && !imageFile)}>
           {posting ? '...' : 'Publicar'}
         </Button>
       </div>
+
+      {blocked && (
+        <div className="mx-4 mt-3 p-4 rounded-lg bg-destructive/10 border border-destructive/30 space-y-1">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-destructive" />
+            <p className="text-sm font-semibold text-destructive">Conta bloqueada</p>
+          </div>
+          <p className="text-sm">{blockReason}</p>
+          {blockUntil && <p className="text-xs text-muted-foreground">Até: {new Date(blockUntil).toLocaleString('pt-BR')}</p>}
+        </div>
+      )}
 
       <div className="p-4 space-y-4">
         <Textarea
@@ -76,6 +90,7 @@ export default function CreatePostPage({ currentUserId }: CreatePostPageProps) {
           onChange={e => setContent(e.target.value)}
           className="min-h-[120px] resize-none border-none bg-transparent text-base focus-visible:ring-0"
           maxLength={2000}
+          disabled={blocked}
         />
 
         {imagePreview ? (
@@ -92,6 +107,7 @@ export default function CreatePostPage({ currentUserId }: CreatePostPageProps) {
           <button
             onClick={() => fileRef.current?.click()}
             className="w-full h-48 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary transition-colors"
+            disabled={blocked}
           >
             <ImagePlus className="h-8 w-8" />
             <span className="text-sm">Adicionar foto</span>
