@@ -249,6 +249,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          related_user_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          related_user_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          related_user_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       organizations: {
         Row: {
           aliases: string[] | null
@@ -433,6 +466,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_blocks: {
+        Row: {
+          blocked_by: string
+          blocked_until: string
+          created_at: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          blocked_by: string
+          blocked_until: string
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          blocked_by?: string
+          blocked_until?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
