@@ -5,18 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AdminBroadcast } from '@/components/AdminBroadcast';
 
 interface MessagesPageProps {
   currentUserId?: string;
+  isAdmin?: boolean;
 }
 
-export default function MessagesPage({ currentUserId }: MessagesPageProps) {
+export default function MessagesPage({ currentUserId, isAdmin }: MessagesPageProps) {
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvo, setActiveConvo] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [otherUser, setOtherUser] = useState<any>(null);
-  const [newChatEmail, setNewChatEmail] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
       .select('conversation_id')
       .eq('user_id', currentUserId);
 
-    if (!parts?.length) return;
+    if (!parts?.length) { setConversations([]); return; }
     const convoIds = parts.map(p => p.conversation_id);
 
     const convos = await Promise.all(convoIds.map(async convoId => {
@@ -44,7 +45,7 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
       const otherUserId = otherParts?.[0]?.user_id;
       let profile = null;
       if (otherUserId) {
-        const { data } = await supabase.from('profiles').select('display_name, avatar_url').eq('user_id', otherUserId).single();
+        const { data } = await supabase.from('profiles').select('display_name, avatar_url, username').eq('user_id', otherUserId).single();
         profile = data;
       }
 
@@ -80,7 +81,6 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
 
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
-    // Realtime
     const channel = supabase
       .channel(`dm-${convoId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convoId}` }, (payload) => {
@@ -99,30 +99,32 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
       sender_id: currentUserId,
       content: newMsg.trim(),
     });
+    // Notify recipient
+    const convo = conversations.find(c => c.id === activeConvo);
+    if (convo?.otherUserId) {
+      await supabase.from('notifications').insert({
+        user_id: convo.otherUserId,
+        type: 'dm',
+        title: 'Nova mensagem',
+        body: newMsg.trim().substring(0, 100),
+        related_user_id: currentUserId,
+      });
+    }
     setNewMsg('');
-  };
-
-  const startNewChat = async () => {
-    if (!currentUserId || !newChatEmail.trim()) return;
-    // Find user by searching profiles (basic approach)
-    // For now, we'll skip this and show the conversation list
-    setNewChatEmail('');
   };
 
   if (activeConvo) {
     return (
       <div className="max-w-lg mx-auto flex flex-col h-[calc(100vh-56px)]">
         <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setActiveConvo(null)}>
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+          <button onClick={() => setActiveConvo(null)}><ArrowLeft className="h-5 w-5" /></button>
           <Avatar className="h-8 w-8">
             {otherUser?.avatar_url && <AvatarImage src={otherUser.avatar_url} />}
             <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
-              {(otherUser?.display_name || 'U')[0].toUpperCase()}
+              {(otherUser?.username || otherUser?.display_name || 'U')[0].toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <span className="font-semibold text-sm">{otherUser?.display_name || 'Usuário'}</span>
+          <span className="font-semibold text-sm">{otherUser?.username ? `@${otherUser.username}` : otherUser?.display_name || 'Usuário'}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -140,16 +142,8 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
         </div>
 
         <div className="border-t border-border p-3 flex gap-2">
-          <Input
-            value={newMsg}
-            onChange={e => setNewMsg(e.target.value)}
-            placeholder="Mensagem..."
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
-            className="flex-1"
-          />
-          <Button size="icon" onClick={sendMessage} disabled={!newMsg.trim()}>
-            <Send className="h-4 w-4" />
-          </Button>
+          <Input value={newMsg} onChange={e => setNewMsg(e.target.value)} placeholder="Mensagem..." onKeyDown={e => e.key === 'Enter' && sendMessage()} className="flex-1" />
+          <Button size="icon" onClick={sendMessage} disabled={!newMsg.trim()}><Send className="h-4 w-4" /></Button>
         </div>
       </div>
     );
@@ -160,6 +154,9 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
       <div className="sticky top-0 bg-card z-40 border-b border-border px-4 py-3">
         <h1 className="text-base font-semibold">Mensagens</h1>
       </div>
+
+      {/* Admin broadcast */}
+      {isAdmin && currentUserId && <AdminBroadcast currentUserId={currentUserId} />}
 
       {conversations.length === 0 ? (
         <p className="text-center py-20 text-muted-foreground text-sm">Nenhuma conversa ainda</p>
@@ -173,11 +170,11 @@ export default function MessagesPage({ currentUserId }: MessagesPageProps) {
             <Avatar className="h-12 w-12">
               {convo.profile?.avatar_url && <AvatarImage src={convo.profile.avatar_url} />}
               <AvatarFallback className="bg-secondary text-secondary-foreground">
-                {(convo.profile?.display_name || 'U')[0].toUpperCase()}
+                {(convo.profile?.username || convo.profile?.display_name || 'U')[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 text-left">
-              <p className="font-semibold text-sm">{convo.profile?.display_name || 'Usuário'}</p>
+              <p className="font-semibold text-sm">{convo.profile?.username ? `@${convo.profile.username}` : convo.profile?.display_name || 'Usuário'}</p>
               <p className="text-xs text-muted-foreground truncate">{convo.lastMsg?.content || ''}</p>
             </div>
           </button>
