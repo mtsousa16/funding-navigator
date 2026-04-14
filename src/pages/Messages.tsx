@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdminBroadcast } from '@/components/AdminBroadcast';
 
@@ -13,17 +14,40 @@ interface MessagesPageProps {
 }
 
 export default function MessagesPage({ currentUserId, isAdmin }: MessagesPageProps) {
+  const location = useLocation();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvo, setActiveConvo] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [otherUser, setOtherUser] = useState<any>(null);
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Capture openConvoId from navigation state
+  useEffect(() => {
+    const state = location.state as { openConvoId?: string } | null;
+    if (state?.openConvoId) {
+      setPendingOpenId(state.openConvoId);
+      // Clear state so refresh doesn't re-open
+      window.history.replaceState({}, '');
+    }
+  }, [location]);
 
   useEffect(() => {
     if (!currentUserId) return;
     loadConversations();
   }, [currentUserId]);
+
+  // Auto-open conversation when pending
+  useEffect(() => {
+    if (pendingOpenId && conversations.length > 0) {
+      const exists = conversations.find(c => c.id === pendingOpenId);
+      if (exists) {
+        openConvo(pendingOpenId);
+        setPendingOpenId(null);
+      }
+    }
+  }, [pendingOpenId, conversations]);
 
   const loadConversations = async () => {
     if (!currentUserId) return;

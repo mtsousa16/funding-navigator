@@ -111,7 +111,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
     const existingConvo = (theirParts || []).find(p => myConvos.has(p.conversation_id));
 
     if (existingConvo) {
-      navigate('/messages');
+      navigate('/messages', { state: { openConvoId: existingConvo.conversation_id } });
       return;
     }
 
@@ -122,7 +122,7 @@ export default function ProfilePage({ currentUserId, onSignOut }: ProfilePagePro
         { conversation_id: convo.id, user_id: currentUserId },
         { conversation_id: convo.id, user_id: profileUserId },
       ]);
-      navigate('/messages');
+      navigate('/messages', { state: { openConvoId: convo.id } });
     }
   };
 
