@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AdminBroadcast } from '@/components/AdminBroadcast';
 
@@ -13,17 +14,40 @@ interface MessagesPageProps {
 }
 
 export default function MessagesPage({ currentUserId, isAdmin }: MessagesPageProps) {
+  const location = useLocation();
   const [conversations, setConversations] = useState<any[]>([]);
   const [activeConvo, setActiveConvo] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMsg, setNewMsg] = useState('');
   const [otherUser, setOtherUser] = useState<any>(null);
+  const [pendingOpenId, setPendingOpenId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Capture openConvoId from navigation state
+  useEffect(() => {
+    const state = location.state as { openConvoId?: string } | null;
+    if (state?.openConvoId) {
+      setPendingOpenId(state.openConvoId);
+      // Clear state so refresh doesn't re-open
+      window.history.replaceState({}, '');
+    }
+  }, [location]);
 
   useEffect(() => {
     if (!currentUserId) return;
     loadConversations();
   }, [currentUserId]);
+
+  // Auto-open conversation when pending
+  useEffect(() => {
+    if (pendingOpenId && conversations.length > 0) {
+      const exists = conversations.find(c => c.id === pendingOpenId);
+      if (exists) {
+        openConvo(pendingOpenId);
+        setPendingOpenId(null);
+      }
+    }
+  }, [pendingOpenId, conversations]);
 
   const loadConversations = async () => {
     if (!currentUserId) return;
@@ -159,26 +183,38 @@ export default function MessagesPage({ currentUserId, isAdmin }: MessagesPagePro
       {isAdmin && currentUserId && <AdminBroadcast currentUserId={currentUserId} />}
 
       {conversations.length === 0 ? (
-        <p className="text-center py-20 text-muted-foreground text-sm">Nenhuma conversa ainda</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Inbox className="h-12 w-12 text-muted-foreground/50" />
+          <p className="text-muted-foreground text-sm">Nenhuma conversa ainda</p>
+          <p className="text-xs text-muted-foreground/70">Siga outros usuários e inicie uma conversa pelo perfil deles.</p>
+        </div>
       ) : (
-        conversations.map(convo => (
-          <button
-            key={convo.id}
-            onClick={() => openConvo(convo.id)}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary transition-colors border-b border-border"
-          >
-            <Avatar className="h-12 w-12">
-              {convo.profile?.avatar_url && <AvatarImage src={convo.profile.avatar_url} />}
-              <AvatarFallback className="bg-secondary text-secondary-foreground">
-                {(convo.profile?.username || convo.profile?.display_name || 'U')[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 text-left">
-              <p className="font-semibold text-sm">{convo.profile?.username ? `@${convo.profile.username}` : convo.profile?.display_name || 'Usuário'}</p>
-              <p className="text-xs text-muted-foreground truncate">{convo.lastMsg?.content || ''}</p>
-            </div>
-          </button>
-        ))
+        <div className="divide-y divide-border">
+          {conversations.map(convo => {
+            const time = convo.lastMsg?.created_at ? new Date(convo.lastMsg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+            return (
+              <button
+                key={convo.id}
+                onClick={() => openConvo(convo.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors"
+              >
+                <Avatar className="h-12 w-12">
+                  {convo.profile?.avatar_url && <AvatarImage src={convo.profile.avatar_url} />}
+                  <AvatarFallback className="bg-secondary text-secondary-foreground">
+                    {(convo.profile?.username || convo.profile?.display_name || 'U')[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">{convo.profile?.username ? `@${convo.profile.username}` : convo.profile?.display_name || 'Usuário'}</p>
+                    {time && <span className="text-[10px] text-muted-foreground">{time}</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{convo.lastMsg?.content || 'Nenhuma mensagem'}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </div>
   );
