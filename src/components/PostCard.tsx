@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ExternalLink, Clock } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { FollowButton } from '@/components/FollowButton';
@@ -36,7 +36,6 @@ export function PostCard({ post, currentUserId, isAdmin = false, onDeleted }: Po
   useEffect(() => {
     supabase.from('profiles').select('display_name, avatar_url, username').eq('user_id', post.user_id).single()
       .then(({ data }) => setProfile(data));
-
     supabase.from('likes').select('id, user_id').eq('post_id', post.id)
       .then(({ data }) => {
         setLikeCount(data?.length ?? 0);
@@ -59,10 +58,8 @@ export function PostCard({ post, currentUserId, isAdmin = false, onDeleted }: Po
 
   const loadComments = async () => {
     const { data } = await supabase
-      .from('comments')
-      .select('id, content, created_at, user_id')
-      .eq('post_id', post.id)
-      .order('created_at', { ascending: true });
+      .from('comments').select('id, content, created_at, user_id')
+      .eq('post_id', post.id).order('created_at', { ascending: true });
     if (data) {
       const withProfiles = await Promise.all(data.map(async c => {
         const { data: p } = await supabase.from('profiles').select('display_name, username').eq('user_id', c.user_id).single();
@@ -89,50 +86,64 @@ export function PostCard({ post, currentUserId, isAdmin = false, onDeleted }: Po
   if (deleted) return null;
 
   return (
-    <div className="bg-card border-b border-border">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-3">
+    <article className="glass-card rounded-xl overflow-hidden transition-all duration-300 hover:border-primary/20">
+      {/* Header - forum style */}
+      <div className="flex items-center gap-3 p-4 pb-2">
         <button onClick={() => navigate(`/profile/${post.user_id}`)}>
-          <Avatar className="h-8 w-8">
+          <Avatar className="h-9 w-9 ring-2 ring-primary/20">
             {profile?.avatar_url && <AvatarImage src={profile.avatar_url} />}
-            <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
+            <AvatarFallback className="text-xs bg-primary/10 text-primary font-semibold">
               {(profile?.username || profile?.display_name || 'U')[0].toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </button>
-        <button onClick={() => navigate(`/profile/${post.user_id}`)} className="text-sm font-semibold text-foreground">
-          {profile?.username ? `@${profile.username}` : profile?.display_name || 'Usuário'}
-        </button>
-        <div className="ml-1">
-          <FollowButton currentUserId={currentUserId} targetUserId={post.user_id} size="sm" />
+        <div className="flex-1 min-w-0">
+          <button onClick={() => navigate(`/profile/${post.user_id}`)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors">
+            {profile?.username ? `@${profile.username}` : profile?.display_name || 'Usuário'}
+          </button>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span className="text-[11px]">{timeAgo(post.created_at)}</span>
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground ml-auto">{timeAgo(post.created_at)}</span>
+        <FollowButton currentUserId={currentUserId} targetUserId={post.user_id} size="sm" />
         <PostOptionsMenu
-          postId={post.id}
-          postUserId={post.user_id}
-          currentUserId={currentUserId}
-          isAdmin={isAdmin}
-          content={content}
+          postId={post.id} postUserId={post.user_id} currentUserId={currentUserId}
+          isAdmin={isAdmin} content={content}
           onDeleted={() => { setDeleted(true); onDeleted?.(); }}
           onEdited={(newContent) => setContent(newContent)}
         />
       </div>
 
-      {/* Media */}
-      {post.image_url && (
-        <img src={post.image_url} alt="" className="w-full aspect-square object-cover" />
-      )}
-      {post.video_url && (
-        <video src={post.video_url} controls className="w-full aspect-video" />
+      {/* Content - blog/forum style */}
+      {content && (
+        <div className="px-4 pb-3">
+          <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">{content}</p>
+        </div>
       )}
 
-      {/* Funding card */}
+      {/* Media */}
+      {post.image_url && (
+        <div className="mx-4 mb-3 rounded-lg overflow-hidden border border-border/40">
+          <img src={post.image_url} alt="" className="w-full object-cover max-h-80" />
+        </div>
+      )}
+      {post.video_url && (
+        <div className="mx-4 mb-3 rounded-lg overflow-hidden border border-border/40">
+          <video src={post.video_url} controls className="w-full" />
+        </div>
+      )}
+
+      {/* Funding card - investigative style */}
       {post.funding_snapshot && (
-        <div className="mx-3 my-2 p-3 rounded-lg bg-secondary border border-border">
-          <p className="text-xs font-semibold text-primary">📊 Financiamento Rastreado</p>
-          <p className="text-sm font-bold mt-1">{post.funding_snapshot.funderName}</p>
+        <div className="mx-4 mb-3 p-3 rounded-lg investigative-gradient border border-primary/20 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-widest">Financiamento Rastreado</p>
+          </div>
+          <p className="text-sm font-bold text-foreground">{post.funding_snapshot.funderName}</p>
           {post.funding_snapshot.amount && (
-            <p className="text-lg font-bold text-primary">
+            <p className="text-xl font-heading font-bold text-primary glow-text">
               {post.funding_snapshot.currency || 'USD'} {Number(post.funding_snapshot.amount).toLocaleString()}
             </p>
           )}
@@ -142,56 +153,50 @@ export function PostCard({ post, currentUserId, isAdmin = false, onDeleted }: Po
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-4 p-3">
-        <button onClick={toggleLike} className="transition-transform active:scale-125">
-          <Heart className={cn('h-6 w-6', liked ? 'fill-accent text-accent' : 'text-foreground')} />
+      {/* Actions bar */}
+      <div className="flex items-center gap-1 px-2 py-2 border-t border-border/30">
+        <button onClick={toggleLike} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-all">
+          <Heart className={cn('h-4 w-4', liked ? 'fill-primary text-primary' : 'text-muted-foreground')} />
+          {likeCount > 0 && <span className="text-xs text-muted-foreground">{likeCount}</span>}
         </button>
-        <button onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}>
-          <MessageCircle className="h-6 w-6 text-foreground" />
+        <button onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-all">
+          <MessageCircle className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Comentar</span>
         </button>
-        <Send className="h-6 w-6 text-foreground" />
-        <Bookmark className="h-6 w-6 text-foreground ml-auto" />
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-all ml-auto">
+          <Share2 className="h-4 w-4 text-muted-foreground" />
+        </button>
       </div>
 
-      {/* Like count */}
-      {likeCount > 0 && (
-        <p className="px-3 text-sm font-semibold">{likeCount} curtida{likeCount > 1 ? 's' : ''}</p>
-      )}
-
-      {/* Content */}
-      {content && (
-        <p className="px-3 pb-2 text-sm">
-          <span className="font-semibold mr-1">{profile?.username ? `@${profile.username}` : profile?.display_name || 'Usuário'}</span>
-          {content}
-        </p>
-      )}
-
-      {/* Comments */}
+      {/* Comments - forum thread style */}
       {showComments && (
-        <div className="px-3 pb-3 space-y-2">
+        <div className="px-4 pb-4 pt-1 border-t border-border/20 space-y-2">
           {comments.map(c => (
-            <p key={c.id} className="text-sm">
-              <span className="font-semibold mr-1">{c.display_name}</span>
-              {c.content}
-            </p>
+            <div key={c.id} className="flex gap-2 py-1.5">
+              <div className="w-0.5 bg-primary/20 rounded-full shrink-0 mt-1" />
+              <div>
+                <span className="text-xs font-semibold text-primary/80 mr-1">{c.display_name}</span>
+                <span className="text-sm text-foreground/80">{c.content}</span>
+              </div>
+            </div>
           ))}
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-1">
             <input
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
-              placeholder="Adicione um comentário..."
-              className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground"
+              placeholder="Responder..."
+              className="flex-1 text-sm bg-input/50 rounded-lg px-3 py-2 border border-border/40 outline-none focus:border-primary/40 placeholder:text-muted-foreground transition-colors"
               onKeyDown={e => e.key === 'Enter' && handleComment()}
             />
             {newComment.trim() && (
-              <button onClick={handleComment} className="text-sm font-semibold text-primary">
-                Publicar
+              <button onClick={handleComment} className="text-xs font-semibold text-primary px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
+                Enviar
               </button>
             )}
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 }

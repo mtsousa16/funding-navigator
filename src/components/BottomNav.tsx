@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { icon: Home, path: '/', label: 'Feed' },
   { icon: Search, path: '/search', label: 'Buscar' },
   { icon: PlusSquare, path: '/create', label: 'Criar' },
-  { icon: MessageCircle, path: '/messages', label: 'Mensagens' },
+  { icon: MessageCircle, path: '/messages', label: 'DM' },
   { icon: User, path: '/profile', label: 'Perfil' },
 ];
 
@@ -15,7 +15,7 @@ export function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around h-14 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 glass-panel border-t-0 flex items-center justify-around h-16 z-50">
       {NAV_ITEMS.map(item => {
         const active = location.pathname === item.path;
         return (
@@ -23,11 +23,17 @@ export function BottomNav() {
             key={item.path}
             onClick={() => navigate(item.path)}
             className={cn(
-              'flex flex-col items-center justify-center gap-0.5 p-2 transition-colors',
-              active ? 'text-foreground' : 'text-muted-foreground'
+              'flex flex-col items-center justify-center gap-1 p-2 transition-all duration-200 rounded-xl min-w-[48px]',
+              active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <item.icon className="h-6 w-6" strokeWidth={active ? 2.5 : 1.5} />
+            <div className={cn(
+              'p-1.5 rounded-lg transition-all duration-200',
+              active && 'bg-primary/15'
+            )}>
+              <item.icon className="h-5 w-5" strokeWidth={active ? 2.5 : 1.5} />
+            </div>
+            <span className="text-[9px] font-medium tracking-wide">{item.label}</span>
           </button>
         );
       })}
